@@ -14,6 +14,9 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 
+# Ignore custom batFile to transfer BIOPLib.ijm to and From FIJI folder
+*.bat
+
 # =========================
 # Operating System Files
 # =========================
