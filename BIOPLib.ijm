@@ -1,4 +1,4 @@
-// BIOP Functions Library v1.0
+// BIOP Functions Library
 
 /*
  * Returns the name of the parameters window, as we cannot use global variables, 
@@ -18,7 +18,7 @@ function getWinTitle() {
 /*
  * Based on an example by Wayne Rasband, we use the "getData" and "setData" functions to 
  * read and write data to and from an opened text window. This allows us to save parameters
- * for an ActionBar in a visible way for the user, instead of relying on IJ.prefs.
+ * for an ActionBar in a visible way for the user, instead of relying on IJ.prefs., for example
  */
 function getData(key) {
 
@@ -57,7 +57,7 @@ function getDataD(key, default) {
 }
 
 /* 
- *  See Above Comment
+ *  Setter for the data on an open text window
  */
 function setData(key, value) {
     	//Open the file and parse the data
@@ -84,7 +84,7 @@ function setData(key, value) {
 }
 
 /*
- * Setter and getter for boolean values
+ * Setter for boolean values
  */
 function setBool(key, bool) {
 	if (bool) {
@@ -94,6 +94,9 @@ function setBool(key, bool) {
 	}
 }
 
+/*
+ * Getter for boolean values
+ */
 function getBool(key) {
 	val = getData(key);
 	if (val == "Yes") {
@@ -186,6 +189,7 @@ function getImageFolder() {
 function setImageFolder(title) {
 	dir = getDirectory(title);
 	setData("Image Folder", dir);
+	//Set save folder directly
 	setSaveFolder();
 	return dir;
 }
