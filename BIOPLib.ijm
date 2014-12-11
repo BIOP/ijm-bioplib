@@ -108,6 +108,26 @@ function getBool(key) {
 }
 
 /*
+ * Setter for array, please specifify the separator.
+ */
+function setDataArray(key,array, separator){
+	data = ""+array[0];
+	for (i=1 ; i< lengthOf(array) ;i++){
+		data = data + separator + array[i];
+	}
+	setData(key,data);
+}
+
+/*
+ *  Getter for array, please specifify the separator. 
+ */
+function getDataArray(key,separator) {
+    stringFromKey = getData(key);
+    arrayFromString = split(stringFromKey,separator);
+	return arrayFromString;
+}
+
+/*
  * Functions to read and write from a text file to a parameters window
  * These are sued by the Save Parameters and Load Parameters Buttons
  */
@@ -177,7 +197,8 @@ function getImageFolder() {
 	dir = getData("Image Folder");
 	if(dir=="") {
 		dir = setImageFolder("Image Folder");
-
+		wait(50);
+		setSaveFolder();
 	}
 	return dir;
 }
@@ -189,8 +210,6 @@ function getImageFolder() {
 function setImageFolder(title) {
 	dir = getDirectory(title);
 	setData("Image Folder", dir);
-	//Set save folder directly
-	setSaveFolder();
 	return dir;
 }
 
@@ -413,11 +432,12 @@ function renameLastRoi(name) {
  * from the firtROI to the lastRoi(included)
  * using patternName
  */
-function renameROI(firtROI,lastRoi,patternName, separator){
+function renameROI(firstROI,lastRoi,patternName,separator){
 	counter=1;
-	for (currentROI = firtROI ; currentROI <= lastRoi ;currentROI++){
+	for (currentROI = firstROI ; currentROI <= lastRoi ;currentROI++){
+		counterPad = IJ.pad(counter, 5);
 		roiManager("select", currentROI);
-		roiManager("Rename", patternName+separator+counter);
+		roiManager("Rename", patternName+separator+counterPad);
 		counter++;
 	}
 }
