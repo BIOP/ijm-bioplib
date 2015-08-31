@@ -101,9 +101,20 @@ function getBool(key) {
 	val = getData(key);
 	if (val == "Yes") {
 		val = true;
-	} else {
+	} else if (val == "No") {
 		val=false;
+	} else {
+		val = NaN;
 	}
+	return val;
+}
+/*
+ * Getter for boolean values with defaults
+ */
+function getBoolD(key, default) {
+	val = getBool(key);
+	if(isNaN(val)) 
+		val = default;
 	return val;
 }
 
@@ -126,6 +137,83 @@ function getDataArray(key,separator) {
     arrayFromString = split(stringFromKey,separator);
 	return arrayFromString;
 }
+/*
+ *  Getter for array with defaults
+ */
+function getDataArray(key,separator, defaultArray) {
+    stringFromKey = getData(key);
+    if(stringFromKey=="") {
+    	arrayFromString = defaultArray;
+    } else {
+    	arrayFromString = split(stringFromKey,separator);
+    }
+	return arrayFromString;
+}
+
+/*  
+ *   Creates a dialog using the given names. Types are 
+ *     "s" : String
+ *     "c" : Checkbox
+ *     "n" : Number
+ *     "m" : Message
+ *   "thr" : Threshold List
+ *   Needs default values
+ *   All three arguments must be provided as arrays
+ *   The function handles recovery of defaults, creating the dialog
+ *   and saving the values back.
+ */
+function promptParameters(names, types, defaults) {
+	for (i=0; i< names.length; i++) {
+		
+		if (types[i] =="n" || types[i] =="s") {
+			val = getDataD(names[i], defaults[i]);
+			defaults[i] = val;
+		} else if (types[i] =="c") {
+			boolval = getBoolD(names[i], defaults[i]);
+			defaults[i] = boolval;
+		}
+		print(names[i], types[i], defaults[i]);  
+	}
+	
+	
+	Dialog.create(toolName()+" Settings");
+	for (i=0; i< names.length; i++) {
+		if(types[i] == "n") {
+			Dialog.addNumber(names[i],defaults[i]);
+		} else if(types[i] == "s") {
+			Dialog.addString(names[i], defaults[i]);
+		} else if(types[i] == "c") {
+			Dialog.addCheckbox(names[i],defaults[i]);
+		} else if(types[i] == "m") {
+			Dialog.addMessage(names[i]);
+		} else if(types[i] == "thr") {
+			thresholds = getList("threshold.methods");
+			Dialog.addChoice(names[i], thresholds, defaults[i]);
+		}
+	}
+
+	Dialog.show();
+
+	for (i=0; i< names.length; i++) {
+		if(types[i] == "n") {
+			data = Dialog.getNumber();
+			setData(names[i], data);
+		} else if(types[i] == "s") {
+			data = Dialog.getString();
+			setData(names[i], data);
+		} else if(types[i] == "c") {
+			data = Dialog.getCheckbox();
+			setBool(names[i], data); 
+			print(data);
+		} else if (types[i] == "thr") {
+			data = Dialog.getChoice();
+			setData(names[i], data);
+		}
+
+		
+	}
+}
+
 
 /*
  * Functions to read and write from a text file to a parameters window
@@ -154,7 +242,7 @@ function loadParameters() {
 	}
 }
 /*
- * Helper function
+ * Helper function, not very useful on its own.
  */
 function openParamsIfNeeded() {
 	winTitle = getWinTitle();
@@ -176,7 +264,7 @@ function saveParameters() {
 }
 
 /* 
- *  isImage lets you know whether the current file is an image. Useful below
+ *  isImage lets you know whether the current file is an image.
  */
 function isImage(filename) {
 	extensions= newArray("lsm", "lei", "lif", "tif", "ics", "bmp", "jpg", "png", "TIF", "tiff", "czi", "zvi");
@@ -191,14 +279,12 @@ function isImage(filename) {
 
 /*
  *  getImageFolder returns the current value of the 'Image Folder' key 
- *  in the parameters window. If it's not set, it calls setImageFolder below.
+ *  in the parameters window. If it's not set, it calls setImageFolder.
  */ 
 function getImageFolder() {
 	dir = getData("Image Folder");
 	if(dir=="") {
 		dir = setImageFolder("Image Folder");
-		wait(50);
-		setSaveFolder();
 	}
 	return dir;
 }
@@ -210,6 +296,9 @@ function getImageFolder() {
 function setImageFolder(title) {
 	dir = getDirectory(title);
 	setData("Image Folder", dir);
+	wait(50);
+	setSaveFolder();
+
 	return dir;
 }
 
@@ -254,7 +343,7 @@ function getNumberImages() {
 }
 
 /*
- * By using isImage and getNumberImages, we can now open the ith image from a folder easily
+ * By using isImage and getNumberImages, we can now open the nth image from a folder easily
  * This is useful when running a batch on a folder
 */
 function openImage(n) {
@@ -383,6 +472,8 @@ function openRoiSet(file) {
 
 /*
  * returns the directory where the ROIs are stored, a subfolder of the image folder.
+ * mode is either "Open" which returns the ROIset Directory from the original images
+ * or "save" which returns the ROIset Directory from the processed images.
  */
 function getRoiFolder(mode) {
 	// Feel free to rename it if you like that sort of thing.
@@ -402,6 +493,8 @@ function getRoiFolder(mode) {
 
 /*
  * Saves the ROIs of the current image
+ * mode is either "Open", which saves the ROIs and associates them with the original images
+ * or "Save" which saves the ROIs in the Processed folder and associates them with the processed image.
  */ 
 function saveRois(mode) {
 	name = getTitle();
@@ -440,6 +533,48 @@ function renameROI(firstROI,lastRoi,patternName,separator){
 		roiManager("Rename", patternName+separator+counterPad);
 		counter++;
 	}
+}
+
+/*
+ * Returns index of first ROI that matches 
+ * the given regular expression
+ */
+function findRoiWithName(roiName) {
+	nR = roiManager("Count");
+
+	for (i=0; i<nR; i++) {
+		roiManager("Select", i);
+		rName = Roi.getName();
+		if (matches(rName, roiName)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+/*
+ * Returns an array of indexes of ROIs that match 
+ * the given regular expression
+ */
+function findRoisWithName(roiName) {
+	nR = roiManager("Count");
+	roiIdx = newArray(nR);
+	k=0;
+	clippedIdx = newArray(0);
+	
+	for (i=0; i<nR; i++) {
+		roiManager("Select", i);
+		rName = Roi.getName();
+		if (matches(rName, roiName)) {
+			roiIdx[k] = i;
+			k++;
+		}
+	}
+	if (k>0) {
+		clippedIdx = Array.trim(roiIdx,k);
+	}
+	
+	return clippedIdx;
 }
 
 
@@ -560,16 +695,101 @@ function writeResults(tableName, column, row, value) {
  */
 function prepareTable(tableName) {
 		updateResults();
-		if(isOpen("Results")) { IJ.renameResults("Temp"); updateResults();}
+		if(isOpen("Results")) { IJ.renameResults("Results","Temp"); updateResults();}
 		if(isOpen(tableName)) { IJ.renameResults(tableName,"Results"); updateResults();}
 
 }
 
 /*
- * Once we are done updating the results, close the results table
+ * Once we are done updating the results, close the results table and give it its final name
  */
 function closeTable(tableName) {
 		updateResults();
-		if(isOpen("Results")){ IJ.renameResults(tableName); updateResults();}
+		if(isOpen("Results")){ IJ.renameResults("Results",tableName); updateResults();}
 		if(isOpen("Temp")) { IJ.renameResults("Temp","Results"); updateResults();}
+}
+
+/*
+ * Function to draw ROIs using right click button. Give it a category name and it will do the rest.
+ */
+function DrawRoisL(category) {
+	//defaultROIcolor = Roi.getDefaultColor;
+	if (getVersion>="1.37r")
+        	setOption("DisablePopupMenu", true);
+	
+	// Setup some variables. Basically these numbers
+	// Represent an action that has taken place (it's the action's ID)
+	shift=1;
+	ctrl=2; 
+	rightButton=4;
+	alt=8;
+	leftButton=16;
+	insideROI = 32; // requires 1.42i or later
+
+	// Now we initialize the ROI counts and check if there are already ROIs with this name. 
+	nRois = roiManager("count");
+	roiNum = 0;
+	for (i=0; i<nRois; i++) {
+		name = call("ij.plugin.frame.RoiManager.getName", i);
+		expr = category+" #\\d+";
+		if (matches(name, expr)) {
+			roiNum++;
+		}
+	}
+	print("\nThere are "+roiNum+" ROIs of category '"+category+"'");
+	
+	
+	// done boolean to stop the loop that checks the mouse's location
+	done=false;
+
+	// rightClicked to make sure the function saves the ROI ONCE and not
+	// continuously while "right click" is presed
+	rightClicked = false;
+	print("Started mouse tracking for "+category+", \nRigth-clic to add, \nPress 'ALT' to stop");
+	while(!done) {
+		// getCursorLoc gives the x,y,z position of the mouse and the flags associated
+		// to see if a particular action has happened, say a left click while shift is 
+		// pressed, you do it like this: 
+		// if (flags&leftButton!=0 && flags&shift!=0) { blah blah... }
+		
+		getCursorLoc(x,y,z,flags);
+		// print(x,y,z,flags);
+		//If a freehand selection exists and the right button was clicked AND that right click was not pressed before already
+		if (flags&rightButton!=0 && selectionType!=-1 && !rightClicked) {
+			// set rightCLicked to true to stop this condition from writing several times the same ROI
+			rightClicked = true;
+			
+			// get color of the ROI
+			colorROI = getData("Color for "+category);
+			Roi.setStrokeColor(colorROI);
+			strokeWidth	=	getData("Stroke width");
+			Roi.setStrokeWidth(strokeWidth);
+			// Add the ROI to the manager
+			roiManager("Add");
+
+			newName = category+" #"+(roiNum+1);
+			renameLastRoi(newName);
+			roiManager("Sort");
+			roiNum++;
+			print(roiNum+" saved.");
+			wait(50);
+		}
+
+		// Once we stopped pressing the right mouse button, we can then click it again and add a new ROI
+		if (flags&rightButton==0) {
+			rightClicked = false;
+		}
+		
+		//We stop the loop when the user presses ALT
+		if(isKeyDown("alt")) {
+			done=true;
+			print("ALT Pressed: Done");
+			setKeyDown("none");
+		}
+
+		// This wait of 10ms is just to avoid checking the mouse position too often
+		wait(10);
+	}
+	// Here we are out of the drawROI loop, so you can do some post processing already here if you want
+	
 }
