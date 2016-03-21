@@ -1,12 +1,11 @@
-// BIOP Functions Library 
  
 /* 
  * Returns the name of the parameters window, as we cannot use global variables,  
  * we just define a function that can act as a global variable 
  */ 
 function getWinTitle() { 
-    	win_title= toolName(); 
-    	// If something is already open, keep it as-is. 
+   win_title= toolName(); 
+   // If something is already open, keep it as-is. 
 	if(!isOpen(win_title)) { 
 		run("New... ", "name=["+win_title+"] type=Table"); 
 		print("["+win_title+"]", "\\Update0:This window contains data "+win_title+" needs."); 
@@ -228,7 +227,7 @@ function loadParameters() {
 	lines = split(filestr, "\n"); 
 	 
 	//Open the file and parse the data 
-	settingName = getWinTitle();; 
+	settingName = getWinTitle();
 	 
 	t = "["+settingName+"]"; 
 	 
@@ -258,8 +257,8 @@ function openParamsIfNeeded() {
  * Same as above. 
 */ 
 function saveParameters() { 
-	winName = getWinTitle(); 
-	selectWindow(winName); 
+	winName = getWinTitle();
+	selectWindow(winName);
 	saveAs("Text", ""); 
 } 
  
@@ -525,10 +524,10 @@ function renameLastRoi(name) {
  * from the firtROI to the lastRoi(included) 
  * using patternName 
  */ 
-function renameROI(firstROI,lastRoi,patternName,separator){ 
+function renameROI(firstROI,lastRoi,patternName,separator, padding){ 
 	counter=1; 
 	for (currentROI = firstROI ; currentROI <= lastRoi ;currentROI++){ 
-		counterPad = IJ.pad(counter, 5); 
+		counterPad = IJ.pad(counter, padding); 
 		roiManager("select", currentROI); 
 		roiManager("Rename", patternName+separator+counterPad); 
 		counter++; 
@@ -565,7 +564,7 @@ function findRoisWithName(roiName) {
 	for (i=0; i<nR; i++) { 
 		roiManager("Select", i); 
 		rName = Roi.getName(); 
-		if (matches(rName, roiName)) { 
+		if (matches(rName, roiName) ) { 
 			roiIdx[k] = i; 
 			k++; 
 		} 
@@ -579,7 +578,7 @@ function findRoisWithName(roiName) {
  
  
 /* 
- * Saves the current image as a TIFF in the currentImage Folder 
+ * Saves the current image as a TIFF in the SaveFolder
  */  
 function saveCurrentImage() { 
 	name = getTitle(); 
@@ -587,6 +586,20 @@ function saveCurrentImage() {
 	File.makeDirectory(dir); 
 	name = getFileNameNoExt(name); 
 	saveAs("TIFF", dir+name+".tif"); 
+	
+} 
+
+/* 
+ * Saves the current image as a Specified Format in the SaveFolder
+ */  
+function saveCurrentImageAs(fileFormat) { 
+	name = getTitle(); 
+	name = getFileNameNoExt(name); 
+	
+	dir = getSaveFolder(); 
+	File.makeDirectory(dir); 
+	
+	run("Bio-Formats Exporter", "save=["+dir+name+"."+fileFormat+"]");
 } 
  
 /* 
@@ -724,7 +737,7 @@ function DrawRoisL(category) {
 	alt=8; 
 	leftButton=16; 
 	insideROI = 32; // requires 1.42i or later 
- 
+
 	// Now we initialize the ROI counts and check if there are already ROIs with this name.  
 	nRois = roiManager("count"); 
 	roiNum = 0; 
@@ -736,7 +749,8 @@ function DrawRoisL(category) {
 		} 
 	} 
 	print("\nThere are "+roiNum+" ROIs of category '"+category+"'"); 
-	 
+
+	 pad = parseInt(getDataD("Padding", 0));
 	 
 	// done boolean to stop the loop that checks the mouse's location
 	done=false; 
@@ -766,7 +780,7 @@ function DrawRoisL(category) {
 			// Add the ROI to the manager 
 			roiManager("Add"); 
  
-			newName = category+" #"+(roiNum+1); 
+			newName = category+" #"+IJ.pad( (roiNum+1), pad); // added by Romain 20160318 !!!!!!!!!!!!!!!!!!!!!!!!!!
 			renameLastRoi(newName); 
 			roiManager("Sort"); 
 			roiNum++; 
@@ -791,4 +805,137 @@ function DrawRoisL(category) {
 	} 
 	// Here we are out of the drawROI loop, so you can do some post processing already here if you want 
 	 
+}
+
+
+/* To store data in multiple tables faster than using the ImageJ Results tables we can write directly a row within a file.
+ * The function  initializeResultsFile() initializes such a file, using an array containing the Columns names. 
+ * 
+ * Th function requires the function(s) :
+ * - getSaveFolder();
+ * 
+ * The required arguments are: 
+ * - the fileName (as a string)
+ * - the columns names (as a array) 
+ * 
+ * The function :
+ * - deletes the file if it already exists !
+ * - makes a string from the array 
+ * - appends this string to the file that makes it the 1st row of the file!
+ * 
+ */
+function initializeResultsFile(savingPath, fileName, columnsNamesArray){ // fileName string and columnsNamesArray an array
+	// On 02.03.2016, savingPath set as an argument 
+	// because getSaveFolder slow down too much the macro!
+	// savingPath = getSaveFolder();
+	f = savingPath + fileName;
+	if ( File.exists(f) ){
+		File.delete(f);
+	}
+	columnSplitter 	= "," ;
+	currentRow = columnsNamesArray[0];
+	for(columnIndex = 1 ; columnIndex < lengthOf(columnsNamesArray) ; columnIndex++){
+		currentRow = currentRow  + columnSplitter + columnsNamesArray[columnIndex] ;
+	}
+	File.append(currentRow, f);
+}
+
+/* To store data in multiple tables faster than using the ImageJ Results tables we can write directly a row within a file.
+ * The function appendRowToResultsFile, appends an array to the existing file.
+ * 
+ * Th function requires the function(s) :
+ * - getSaveFolder();
+ * 
+ * The required arguments are: 
+ * - the fileName (as a string)
+ * - the results for each columns (as an array)
+ * 
+ * The function :
+ * - makes a string from the array 
+ * - appends this string to the file
+ * 
+ * 
+ */
+function appendRowToResultsFile(savingPath, fileName, array){ // resultsFileName string and an array of value
+	// On 02.03.2016, savingPath set as an argument 
+	// because getSaveFolder slow down too much the macro!
+	// savingPath = getSaveFolder()
+	f = savingPath + fileName;
+	columnSplitter 	= "," ;
+	currentRow 		= array[0];
+	for(columnIndex = 1 ; columnIndex < lengthOf(array) ; columnIndex++){
+		currentRow = currentRow + columnSplitter + array[columnIndex] ;
+	}
+	File.append(currentRow, f);
+}
+
+
+/* To store data in multiple tables faster than using the ImageJ Results tables we can write directly a row within a file.
+ * We need to manipulate arrays.
+ * 
+ * getValueFromArray can be a usefull function to retrieve a value if you know the :
+ * - the columns names 
+ * - the key for the value of interest
+ * 
+ */
+function getValueFromArray(key,columnNames,array){
+	/*
+	 * needs function findIndex(key,columnNames);
+	 */
+	index = findIndex(key,columnNames);		// find index of the key in columnNames 
+	value = array[index];					// set value in array[index]
+	return value ;							// return the array
+}
+
+
+/* To store data in multiple tables faster than using the ImageJ Results tables we can write directly a row within a file.
+ * We need to manipulate arrays.
+ * 
+ * setValueFromArray can be a usefull function to store a value in an array if you know the :
+ * - the columns names 
+ * - the key for the value of interest
+ * 
+ */
+function setValueInArray(key,value,columnNames, array){
+	/*
+	 * needs function findIndex(key,columnNames);
+	 */
+	// Array.print(columnNames);
+	index = findIndex(key,columnNames);		// find index of the Key, in columnNames 
+	if (index < lengthOf(array) ){
+		array[index]= value	;				// set value in array[index]
+		return array ;
+	}else{
+		showMessage("index larger than array size");
+	}
+	// return the array
+}
+
+/* To store data in multiple tables faster than using the ImageJ Results tables we can write directly a row within a file.
+ * We need to manipulate arrays.
+ * 
+ * 
+ * findIndex can be a usefull function to store/retrieve a value in an array if you know the :
+ * - the columns names 
+ * - the key for the value of interest
+ * 
+ */
+
+function findIndex(key,columnNames){
+	found = false;
+	index = 0;
+	// find index of key, in columnNames
+	while ( !found && (index < lengthOf(columnNames) )) {
+		if(columnNames[index] == key) {
+			found = true;
+		} else {
+			index++;
+		}
+	}
+		
+	if(found){
+		return index;		
+	} else{
+		showMessage(key+" not found");
+	}
 }
