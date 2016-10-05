@@ -157,7 +157,8 @@ function getDataArray(key,separator, defaultArray) {
  *     "c" : Checkbox 
  *     "n" : Number 
  *     "m" : Message 
- *   "thr" : Threshold List 
+ *   "thr" : Threshold List
+ *   "lut" : LUT List
  *   Needs default values 
  *   All three arguments must be provided as arrays 
  *   The function handles recovery of defaults, creating the dialog 
@@ -166,13 +167,13 @@ function getDataArray(key,separator, defaultArray) {
 function promptParameters(names, types, defaults) { 
 	for (i=0; i< names.length; i++) { 
 		 
-		if (types[i] =="n" || types[i] =="s") { 
-			val = getDataD(names[i], defaults[i]); 
-			defaults[i] = val; 
-		} else if (types[i] =="c") { 
+		if (types[i] =="c") { 
 			boolval = getBoolD(names[i], defaults[i]); 
 			defaults[i] = boolval; 
-		} 
+		} else {
+			val = getDataD(names[i], defaults[i]); 
+			defaults[i] = val; 
+		}
 	} 
 	 
 	 
@@ -189,7 +190,10 @@ function promptParameters(names, types, defaults) {
 		} else if(types[i] == "thr") { 
 			thresholds = getList("threshold.methods"); 
 			Dialog.addChoice(names[i], thresholds, defaults[i]); 
-		} 
+		} else if(types[i] == "lut") {
+			luts = getList("luts"); 
+			Dialog.addChoice(names[i], luts, defaults[i]); 		
+		}
 	} 
  
 	Dialog.show(); 
@@ -204,7 +208,7 @@ function promptParameters(names, types, defaults) {
 		} else if(types[i] == "c") { 
 			data = Dialog.getCheckbox(); 
 			setBool(names[i], data);  
-		} else if (types[i] == "thr") { 
+		} else if (types[i] == "thr" || types[i] == "lut" ) { 
 			data = Dialog.getChoice(); 
 			setData(names[i], data); 
 		} 
