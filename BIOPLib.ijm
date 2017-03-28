@@ -141,7 +141,7 @@ function getDataArray(key,separator) {
 /* 
  *  Getter for array with defaults 
  */ 
-function getDataArray(key,separator, defaultArray) { 
+function getDataArrayD(key,separator, defaultArray) { 
     stringFromKey = getData(key); 
     if(stringFromKey=="") { 
     	arrayFromString = defaultArray; 
@@ -157,6 +157,7 @@ function getDataArray(key,separator, defaultArray) {
  *     "c" : Checkbox 
  *     "n" : Number 
  *     "m" : Message 
+ *     "l" : List
  *   "thr" : Threshold List
  *   "lut" : LUT List
  *   Needs default values 
@@ -165,11 +166,17 @@ function getDataArray(key,separator, defaultArray) {
  *   and saving the values back. 
  */ 
 function promptParameters(names, types, defaults) { 
+	lists_sel = newArray(names.length);
+	
 	for (i=0; i< names.length; i++) { 
 		 
 		if (types[i] =="c") { 
 			boolval = getBoolD(names[i], defaults[i]); 
-			defaults[i] = boolval; 
+			defaults[i] = boolval;
+		} else if (types[i] =="l") {
+			vals = getDataD(names[i], defaults[i]);
+			valsA = split(vals,",");
+			lists_sel[i] = valsA[0];
 		} else {
 			val = getDataD(names[i], defaults[i]); 
 			defaults[i] = val; 
@@ -187,6 +194,9 @@ function promptParameters(names, types, defaults) {
 			Dialog.addCheckbox(names[i],defaults[i]); 
 		} else if(types[i] == "m") { 
 			Dialog.addMessage(names[i]); 
+		} else if(types[i] == "l") {
+			arrA = split(defaults[i],","); 
+			Dialog.addChoice(names[i], arrA,lists_sel[i]);
 		} else if(types[i] == "thr") { 
 			thresholds = getList("threshold.methods"); 
 			Dialog.addChoice(names[i], thresholds, defaults[i]); 
@@ -205,9 +215,12 @@ function promptParameters(names, types, defaults) {
 		} else if(types[i] == "s") { 
 			data = Dialog.getString(); 
 			setData(names[i], data); 
-		} else if(types[i] == "c") { 
+		} else if(types[i] == "c") {
 			data = Dialog.getCheckbox(); 
 			setBool(names[i], data);  
+		} else if(types[i] == "l") {
+			data = Dialog.getChoice(); 
+			setData(names[i], data);
 		} else if (types[i] == "thr" || types[i] == "lut" ) { 
 			data = Dialog.getChoice(); 
 			setData(names[i], data); 
@@ -943,3 +956,42 @@ function findIndex(key,columnNames){
 		showMessage(key+" not found");
 	}
 }
+
+/*
+ * This function calculates the convex hull of each ROI in the RoiManager and updates them
+ */
+function convexHullEachRoi() {
+	nR = roiManager("Count");
+	
+	for(i=0; i<nR;i++) {
+		roiManager("Select", i);
+		run("Convex Hull");
+		roiManager("Update");
+	}
+}
+
+/*
+ * returns the index of the element in array that matches the given regular expression
+ */
+ function findArrayIndex(search, array) {
+ 	for(i=0; i<array.length;i++) {
+ 		if (matches(array[i], search)) {
+ 			return i;
+ 		}
+ 	}
+ }
+ 
+/*
+ * returns all indexes of the element in array that matches the given regular expression
+ */
+ function findArrayIndexes(search, array) {
+ 	foundIdx = newArray(0);
+ 	for(i=0; i<array.length;i++) {
+ 		if (matches(array[i], search)) {
+ 			foundIdx = Array.concat(foundIdx,i);
+ 		}
+ 	}
+ 	return foundIdx;
+ }
+
+
