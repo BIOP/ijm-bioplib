@@ -33,13 +33,18 @@
  * we just define a function that can act as a global variable 
  */ 
 function getWinTitle() { 
+   
    win_title= toolName(); 
+   
    // If something is already open, keep it as-is. 
 	if(!isOpen(win_title)) { 
-		run("New... ", "name=["+win_title+"] type=Table"); 
-		print("["+win_title+"]", "\\Update0:This window contains data "+win_title+" needs."); 
-		print("["+win_title+"]", "\\Update1:Please do not close it."); 
-	} 
+		Table.create(win_title);
+		Table.set("Keys", 0, "Please do not close");
+		Table.set("Values", 0, "-");
+		Table.update;
+		
+	}
+	wait(100);
 	return win_title; 
 } 
      
@@ -51,24 +56,28 @@ function getWinTitle() {
 function getData(key) { 
  
 	winTitle = getWinTitle(); 
-	win = "["+winTitle+"]"; 
  
+	
 	selectWindow(winTitle); 
-	lines = split(getInfo(),'\n'); 
+	
+	// Get all keys
+	keys = Table.getColumn("Keys");
+	values = Table.getColumn("Values");
+	
 	i=0; 
 	done=false; 
 	value = ""; 
-	while (!done && i < lines.length) { 
+	while (!done && i < keys.length) { 
 		// The structure for the data is "key : value", so we use a regex to find the key and place ourselves after the " : " 
-		if(matches(lines[i], ".*"+key+".*")) { 
-			value = substring(lines[i], indexOf(lines[i]," : ")+3,lengthOf(lines[i])); 
+		if(matches(keys[i], ".*"+key+".*")) { 
+			value = values[i]; 
 			done = true; 
 		 
 		} else { 
 			i++; 
 		}	 
-	} 
- 
+	}
+	if (value == "-") value = "";
 	return value; 
 } 
  
@@ -76,7 +85,8 @@ function getData(key) {
  * and returns it if the key is not found 
 */ 
 function getDataD(key, default) { 
-	value = getData(key); 
+	
+	value = getData(key);
 	if (value == "") { 
 		return default; 
 	} else { 
@@ -90,25 +100,28 @@ function getDataD(key, default) {
 function setData(key, value) { 
     	//Open the file and parse the data 
 	winTitle = getWinTitle(); 
-	win = "["+winTitle+"]"; 
+
  
 	selectWindow(winTitle); 
-	lines = split(getInfo(),'\n'); 
+	keys = Table.getColumn("Keys");
+	values = Table.getColumn("Values");
+	
 	i=0; 
 	done=false; 
-	if (lines.length > 0) { 
-		while (!done && i < lines.length) { 
-			if(matches(lines[i], ".*"+key+".*")) { 
-				done=true; 
-			} else { 
-				i++; 
-			}		 
-		} 
-			print(win, "\\Update"+i+":"+key+" : "+value); 
-	} else {  
-		// The key did not exist 
-		print(win, key+" : "+value); 
-	} 
+	while (!done && i < keys.length) { 
+		// The structure for the data is "key : value", so we use a regex to find the key and place ourselves after the " : " 
+		if(matches(keys[i], ".*"+key+".*")) { 
+			done = true; 
+		} else { 
+			i++; 
+		}	 
+	}
+	
+	Table.set("Keys", i, key);
+	if( value == "" ) value = "-";
+	Table.set("Values", i, value);
+	
+	Table.update;
 } 
  
 /* 
@@ -269,33 +282,25 @@ function loadParameters() {
 	file = File.openDialog("Select Parameters File"); 
 	 
 	//Get the contents 
-	filestr = File.openAsString(file); 
-	lines = split(filestr, "\n"); 
-	 
-	//Open the file and parse the data 
-	settingName = getWinTitle();
-	 
-	t = "["+settingName+"]"; 
-	 
-	// If something is already open, keep it as-is. 
-	if(!isOpen(settingName)) { 
-		run("New... ", "name="+t+" type=Table"); 
-	} 
-	selectWindow(settingName); 
-	for (i=0; i<lines.length; i++) { 
-		print(t, "\\Update"+i+":"+lines[i]); 
-	} 
+	// Open the file
+	winTitle = getWinTitle(); 
+	
+	if(isOpen(winTitle)) close(winTitle);
+	
+	run("Table... ", "open=["+file+"]");
+	startName = File.getName(file);
+	Table.rename(startName, winTitle);
 } 
 /* 
  * Helper function, not very useful on its own. 
  */ 
 function openParamsIfNeeded() { 
 	winTitle = getWinTitle(); 
-	t = "["+winTitle+"]"; 
+	
 	// If something is already open, keep it as-is. 
 	if(!isOpen(winTitle)) { 
-		run("New... ", "name="+t+" type=Table"); 
-		print(t, "\\Update0:This window contains data the macro needs. Please don't close it"); 
+		Table.create(winTitle);
+		setData("Please do not close", "");
 	} 
 } 
  
@@ -305,7 +310,7 @@ function openParamsIfNeeded() {
 function saveParameters() { 
 	winName = getWinTitle();
 	selectWindow(winName);
-	saveAs("Text", ""); 
+	saveAs("Results", "");
 } 
  
 /*  
@@ -1098,5 +1103,3 @@ function now(){
 	nowValue = ""+IJ.pad(hour,2)+":"+IJ.pad(minute,2)+":"+IJ.pad(second,2);
 	return nowValue;
 }
-
-
