@@ -1,5 +1,34 @@
  
-/* 
+ /* 
+ * Close image or nonimage window
+ */
+ function closeAll(type) { 
+		if (type=="nonimage") {
+			liste = getList("window.titles");
+			if (liste.length==0)
+	     			print("No non-image windows are open");
+	 		else {
+			     print("Non-image windows:");
+				for (i=0; i<liste.length; i++) {
+					
+					//print(liste[i]);
+					selectWindow(liste[i]);
+					if (liste[i] != "Common Tools" && !endsWith(liste[i],".ijm"))
+						run("Close");
+				}
+			}
+		} 
+		if(type=="image"){
+			while (nImages!=0) {
+		        	selectImage(1);
+		        	close();
+			}
+		}
+}
+
+ 
+ 
+ /* 
  * Returns the name of the parameters window, as we cannot use global variables,  
  * we just define a function that can act as a global variable 
  */ 
@@ -166,7 +195,7 @@ function getDataArrayD(key,separator, defaultArray) {
  *   and saving the values back. 
  */ 
 function promptParameters(names, types, defaults) { 
-	lists_sel = newArray(names.length);
+	lists_sel = newArray(lengthOf(names));
 	
 	for (i=0; i< names.length; i++) { 
 		 
@@ -283,7 +312,7 @@ function saveParameters() {
  *  isImage lets you know whether the current file is an image. 
  */ 
 function isImage(filename) { 
-	extensions= newArray("lsm", "lei", "lif", "tif", "ics", "bmp", "jpg", "png", "TIF", "tiff", "czi", "zvi", "nd2"); 
+	extensions= newArray("lsm", "lei", "lif", "tif", "ics", "bmp", "jpg", "png", "TIF", "tiff", "czi", "zvi", "nd2", "nd", "ims"); 
 	for (i=0; i<extensions.length; i++) { 
 		if(endsWith(filename, "."+extensions[i])) { 
 			return true; 
@@ -367,7 +396,7 @@ function openImage(n) {
 	dir = getImageFolder(); 
 	file = getFileList(dir); 
 	nI = getNumberImages(); 
-	for (i=0; i<file.length; i++) { 
+	for (i=0; i<lengthOf(file); i++) { 
 		if(isImage(file[i])) { 
 			 nFiles++; 
 			 if (nFiles==n) { 
@@ -389,7 +418,7 @@ function getImagesList() {
 	 
 	list = getFileList(dir); 
  
-	images = newArray(list.length); 
+	images = newArray(lengthOf(list)); 
 	k=0; 
 	// Check things in the list 
 	for (i=0; i<list.length; i++) { 
@@ -417,7 +446,7 @@ function selectImageDialog() {
 	roiDir = getRoiFolder("Open"); 
  
 	// Account for the option "None" 
-	images = newArray(list.length+1); 
+	images = newArray(lengthOf(list)+1); 
 	images[0] = "None"; 
 	// Build the dialog 
 	Dialog.create("Select File To Open"); 
@@ -700,7 +729,11 @@ function writeResults(tableName, column, row, value) {
 		 
 		// Now we can set the data 
 		if(row == "Current"){ 
-			setResult(column, (nResults-1),value); 
+			if( nResults == 0) {
+				setResult(column, nResults,value); // Special case, no results table is open
+			} else {
+				setResult(column, (nResults-1),value); 
+			}
 		} else if(row == "Next"){ 
 			setResult(column, nResults,value); 
 		} else { 
@@ -879,12 +912,74 @@ function appendRowToResultsFile(savingPath, fileName, array){ // resultsFileName
 	// savingPath = getSaveFolder()
 	f = savingPath + fileName;
 	columnSplitter 	= "," ;
-	currentRow 		= array[0];
+	currentRow 		= ""+array[0];
 	for(columnIndex = 1 ; columnIndex < lengthOf(array) ; columnIndex++){
 		currentRow = currentRow + columnSplitter + array[columnIndex] ;
 	}
 	File.append(currentRow, f);
 }
+
+/* To store data in multiple tables faster than using the ImageJ Results tables we can write directly a row within a file.
+ * The function  initializeResultsFile() initializes such a file, using an array containing the Columns names. 
+ * 
+ * Th function requires the function(s) :
+ * - getSaveFolder();
+ * 
+ * The required arguments are: 
+ * - the fileName (as a string)
+ * - the columns names (as a array) 
+ * 
+ * The function :
+ * - deletes the file if it already exists !
+ * - makes a string from the array 
+ * - appends this string to the file that makes it the 1st row of the file!
+ * 
+ */
+function initializeTabbedResultsFile(savingPath, fileName, columnsNamesArray){ // fileName string and columnsNamesArray an array
+	// On 02.03.2016, savingPath set as an argument 
+	// because getSaveFolder slow down too much the macro!
+	// savingPath = getSaveFolder();
+	f = savingPath + fileName;
+	if ( File.exists(f) ){
+		File.delete(f);
+	}
+	columnSplitter 	= "\t" ;
+	currentRow = columnsNamesArray[0];
+	for(columnIndex = 1 ; columnIndex < lengthOf(columnsNamesArray) ; columnIndex++){
+		currentRow = currentRow  + columnSplitter + columnsNamesArray[columnIndex] ;
+	}
+	File.append(currentRow, f);
+}
+
+/* To store data in multiple tables faster than using the ImageJ Results tables we can write directly a row within a file.
+ * The function appendRowToResultsFile, appends an array to the existing file.
+ * 
+ * Th function requires the function(s) :
+ * - getSaveFolder();
+ * 
+ * The required arguments are: 
+ * - the fileName (as a string)
+ * - the results for each columns (as an array)
+ * 
+ * The function :
+ * - makes a string from the array 
+ * - appends this string to the file
+ * 
+ * 
+ */
+function appendRowToTabbedResultsFile(savingPath, fileName, array){ // resultsFileName string and an array of value
+	// On 02.03.2016, savingPath set as an argument 
+	// because getSaveFolder slow down too much the macro!
+	// savingPath = getSaveFolder()
+	f = savingPath + fileName;
+	columnSplitter 	= "\t" ;
+	currentRow 		= ""+array[0];
+	for(columnIndex = 1 ; columnIndex < lengthOf(array) ; columnIndex++){
+		currentRow = currentRow + columnSplitter + array[columnIndex] ;
+	}
+	File.append(currentRow, f);
+}
+
 
 
 /* To store data in multiple tables faster than using the ImageJ Results tables we can write directly a row within a file.
@@ -993,5 +1088,15 @@ function convexHullEachRoi() {
  	}
  	return foundIdx;
  }
+
+
+/*
+ * return string with hours:min:second
+ */
+function now(){
+	getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
+	nowValue = ""+IJ.pad(hour,2)+":"+IJ.pad(minute,2)+":"+IJ.pad(second,2);
+	return nowValue;
+}
 
 
